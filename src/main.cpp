@@ -5,7 +5,6 @@
 #include <DHT.h>
 
 #define DHT11_PIN 7
-#define DHT22_PIN 6
 
 #define MQ2_PIN  A2
 #define MQ9_PIN  A3
@@ -15,19 +14,22 @@ static unsigned long dhtTimer = millis();
 static unsigned long debugTimer = millis();
 static unsigned long lcdClearTimer = millis();
 
-float carbone = 0;      // carbon monoxide/dioxide = C
-float humidity = 0;     // humidity = H
-float smoke = 0;     // pressure = P
-float temperature = 0;  // temperature = T
+String outdoorIdentifier;
+String outdoorHumidity;
+String outdoorTemperature;
+String outdoorVoltage;
+float carbone = 0;
+float smoke = 0;
 
-float h11,t11,h22,t22;
+float localTemperature;
+int Smoke, Hydrogen, CarbonMonoxide, Methane, localHumidity;
+byte mode;
 
 SoftwareSerial radio(4, 3); // TX, RX
 
 LiquidCrystal_I2C lcd(0x27,16,2);
 
-DHT dht11(DHT11_PIN, DHT11);
-DHT dht22(DHT22_PIN, DHT22);
+DHT dht(DHT11_PIN, DHT11);
 
 MQ2 mq2(MQ2_PIN);
 MQ9 mq9(MQ9_PIN);
@@ -42,11 +44,13 @@ void blink(void){
 void debug(void){
   if (millis() - debugTimer > 5000) {
     debugTimer = millis();
-    Serial.print("\t h11 = " + String(h11));
-    Serial.println("\t\t h22 = " + String(h22));
+    Serial.print("\t localHumidity = " + String(localHumidity));
+    Serial.println("\t\t outdoorHumidity = " + String(outdoorHumidity));
 
-    Serial.print("\t t11 = " + String(t11));
-    Serial.println("\t\t t22 = " + String(t22));
+    Serial.print("\t localTemperature = " + String(localTemperature));
+    Serial.print("\t outdoorTemperature = " + String(outdoorTemperature));
+    Serial.println("\t outdoorVoltage = " + String(outdoorVoltage));
+
 
     Serial.print("\t MQ-2 LPG: " + String(mq2.readLPG()) + " ppm");
     Serial.println("\t MQ-9 LPG: " + String(mq9.readLPG()) + " ppm");
@@ -64,76 +68,88 @@ void debug(void){
 }
 
 void dhtRead (void){
-  if (millis() - dhtTimer > 5000) {
+  if (millis() - dhtTimer > 10000) {
     dhtTimer = millis();
-    h11 = dht11.readHumidity();
-    t11 = dht11.readTemperature();
-    h22 = dht11.readHumidity();
-    t22 = dht11.readTemperature();
+    localHumidity = dht.readHumidity();
+    localTemperature = dht.readTemperature();
+
+    Smoke = mq2.readSmoke();
+    Hydrogen = mq2.readHydrogen();
+    CarbonMonoxide = mq9.readCarbonMonoxide();
+    Methane = (mq2.readMethane() + mq9.readMethane())/2;
+
+    lcd.clear();
+    mode++;
+
   }
 }
 
 void radioMonitoring(void){
-  if (radio.available() && radio.read()=='C'){
-    int buff = radio.parseFloat();
-    carbone = buff;
-    lcd.clear();
+  //input "C01,T=23.30,H=21,V=4.02;"
+  if (radio.available()){
+    String buff = radio.readString();
+    // Serial.println(buff);
+    outdoorIdentifier = buff.substring(buff.indexOf('C')+1, buff.indexOf('T')-1);
+    outdoorTemperature = buff.substring(buff.indexOf('T')+2, buff.indexOf('H')-2);
+    outdoorHumidity = buff.substring(buff.indexOf('H')+2, buff.indexOf('V')-1);
+    outdoorVoltage = buff.substring(buff.indexOf('V')+2, buff.indexOf(';'));
   }
-  if (radio.available() && radio.read()=='H'){
-    int buff = radio.parseFloat();
-    humidity = buff;
-    lcd.clear();
-  }
-  if (radio.available() && radio.read()=='S'){
-    int buff = radio.parseFloat();
-    smoke = buff;
-    lcd.clear();
-  }
-  if (radio.available() && radio.read()=='T'){
-    int buff = radio.parseFloat();
-    temperature = buff;
-    lcd.clear();
-  }
+
 }
+
 
 void resultToLCD(void){
 
-  carbone = mq9.readCarbonMonoxide();
-  humidity = h11;
-  temperature = t11;
-  smoke = mq2.readSmoke();
+  if ((mode % 2) == true) {
+    lcd.setCursor(0,0);
+    lcd.print("H=");
+    lcd.setCursor(2,0);
+    lcd.print(String(localHumidity)+"%");
 
-  lcd.setCursor(0,0);
-  lcd.print("C=");
-  lcd.setCursor(2,0);
-  lcd.print(carbone, 1);
+    lcd.setCursor(8,0);
+    lcd.print("H=");
+    lcd.setCursor(10,0);
+    lcd.print(String(outdoorHumidity)+"%");
 
-  lcd.setCursor(8,0);
-  lcd.print("H=");
-  lcd.setCursor(10,0);
-  lcd.print(humidity, 1);
+    lcd.setCursor(0,1);
+    lcd.print("T=");
+    lcd.setCursor(2,1);
+    lcd.print(localTemperature, 1);
 
-  lcd.setCursor(0,1);
-  lcd.print("S=");
-  lcd.setCursor(2,1);
-  lcd.print(smoke, 1);
+    lcd.setCursor(8,1);
+    lcd.print("T=");
+    lcd.setCursor(10,1);
+    lcd.print(outdoorTemperature);
+  }
+  else {
+    lcd.setCursor(0,0);
+    lcd.print("S=");
+    lcd.setCursor(2,0);
+    lcd.print(Smoke, 1);
 
-  lcd.setCursor(8,1);
-  lcd.print("T=");
-  lcd.setCursor(10,1);
-  lcd.print(temperature, 1);
+    lcd.setCursor(8,0);
+    lcd.print("C=");
+    lcd.setCursor(10,0);
+    lcd.print(CarbonMonoxide, 1);
+
+    lcd.setCursor(0,1);
+    lcd.print("M=");
+    lcd.setCursor(2,1);
+    lcd.print(Methane, 1);
+
+    lcd.setCursor(8,1);
+    lcd.print("V=");
+    lcd.setCursor(10,1);
+    lcd.print(outdoorVoltage);
+  }
 }
 
 
-
 void setup() {
+  radio.begin(9600);
   Serial.begin(9600);
 
-  dht11.begin();
-  dht22.begin();
-
-  mq2.calibrate();
-  mq9.calibrate();
+  pinMode(LED_BUILTIN, OUTPUT);
 
   lcd.init();
   lcd.backlight();
@@ -141,10 +157,12 @@ void setup() {
   lcd.print("meteoStation");
   lcd.setCursor(3,1);
   lcd.print("Loading...");
+  delay(2000);
 
-  radio.begin(9600);
+  dht.begin();
 
-  pinMode(LED_BUILTIN, OUTPUT);
+  mq2.calibrate();
+  mq9.calibrate();
 
   delay(2000);
   lcd.clear();
