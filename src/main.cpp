@@ -43,6 +43,7 @@ void loop() {
   digitalWrite(LED_BUILTIN, HIGH);
 
   digitalWrite(RadioSetPin, LOW);
+  delay(50);
   radio.println("AT");
   delay(50);
   digitalWrite(RadioSetPin, HIGH);
@@ -56,6 +57,7 @@ void loop() {
   digitalWrite(LED_BUILTIN, LOW);
 
   digitalWrite(RadioSetPin, LOW);
+  delay(50);
   radio.println("AT+SLEEP");
   delay(50);
   digitalWrite(RadioSetPin, HIGH);
