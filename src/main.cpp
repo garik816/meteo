@@ -5,7 +5,7 @@
 #include <DHT.h>
 
 #define DHT11_PIN 7
-#define MQ9_PIN  A3
+#define MQ135_PIN  A3
 
 static unsigned long timer = millis();
 static unsigned long dhtTimer = millis();
@@ -18,19 +18,20 @@ String outdoorTemperature;
 String outdoorVoltage;
 
 float localTemperature;
-int localHumidity, localLPG, localMethane, localCarbonMonoxide;
+int localHumidity, localCarbonDioxide;
 byte mode;
 
 SoftwareSerial radio(4, 3); // TX, RX
 LiquidCrystal_I2C lcd(0x27,16,2);
 DHT dht(DHT11_PIN, DHT11);
-MQ9 mq9(MQ9_PIN);
+MQ135 mq135(MQ135_PIN);
 
 void blink(void){
-  if (millis() - timer > 500) {
+  if (millis() - timer > 1000) {
     timer = millis();
     digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
   }
+
 }
 
 void debug(void){
@@ -43,23 +44,19 @@ void debug(void){
     Serial.print("\t outdoorTemperature = " + String(outdoorTemperature));
     Serial.println("\t outdoorVoltage = " + String(outdoorVoltage));
 
-    Serial.println("\t MQ-9 LPG: " + String(localLPG) + " ppm");
-    Serial.println("\t MQ-9 Methane: " + String(localMethane) + " ppm");
-    Serial.println("\t MQ-9 CarbonMonoxide: " + String(localCarbonMonoxide) + " ppm");
+    Serial.println("\t MQ-135 CarbonDioxide: " + String(localCarbonDioxide) + " ppm");
 
     Serial.println(" ");
   }
 }
 
 void dhtRead (void){
-  if (millis() - dhtTimer > 10000) {
+  if (millis() - dhtTimer > 5000) {
     dhtTimer = millis();
     localHumidity = dht.readHumidity();
     localTemperature = dht.readTemperature();
 
-    localLPG = mq9.readLPG();
-    localCarbonMonoxide = mq9.readCarbonMonoxide();
-    localMethane = mq9.readMethane();
+    localCarbonDioxide = mq135.readCO2();
 
     lcd.clear();
     mode++;
@@ -105,24 +102,24 @@ void resultToLCD(void){
     lcd.print(outdoorTemperature);
   }
   else {
-    lcd.setCursor(0,0);
-    lcd.print("G=");
-    lcd.setCursor(2,0);
-    lcd.print(localLPG, 1);
+    // lcd.setCursor(0,0);
+    // lcd.print("G=");
+    // lcd.setCursor(2,0);
+    // lcd.print(localLPG, 1);
 
-    lcd.setCursor(8,0);
-    lcd.print("C=");
-    lcd.setCursor(10,0);
-    lcd.print(localCarbonMonoxide, 1);
+    lcd.setCursor(0,0);
+    lcd.print("Co2=");
+    lcd.setCursor(4,0);
+    lcd.print(localCarbonDioxide, 1);
+
+    // lcd.setCursor(0,1);
+    // lcd.print("M=");
+    // lcd.setCursor(2,1);
+    // lcd.print(localMethane, 1);
 
     lcd.setCursor(0,1);
-    lcd.print("M=");
-    lcd.setCursor(2,1);
-    lcd.print(localMethane, 1);
-
-    lcd.setCursor(8,1);
     lcd.print("V=");
-    lcd.setCursor(10,1);
+    lcd.setCursor(2,1);
     lcd.print(outdoorVoltage);
   }
 }
@@ -143,7 +140,7 @@ void setup() {
   delay(2000);
 
   dht.begin();
-  mq9.calibrate();
+  mq135.calibrate();
 
   delay(2000);
   lcd.clear();
