@@ -16,6 +16,7 @@ String outdoorIdentifier;
 String outdoorHumidity;
 String outdoorTemperature;
 String outdoorVoltage;
+String outdoorPressure;
 
 float localTemperature;
 int localHumidity, localCarbonDioxide;
@@ -44,6 +45,8 @@ void debug(void){
     Serial.print("\t outdoorTemperature = " + String(outdoorTemperature));
     Serial.println("\t outdoorVoltage = " + String(outdoorVoltage));
 
+
+
     Serial.println("\t MQ-135 CarbonDioxide: " + String(localCarbonDioxide) + " ppm");
 
     Serial.println(" ");
@@ -51,7 +54,7 @@ void debug(void){
 }
 
 void dhtRead (void){
-  if (millis() - dhtTimer > 5000) {
+  if (millis() - dhtTimer > 10000) {
     dhtTimer = millis();
     localHumidity = dht.readHumidity();
     localTemperature = dht.readTemperature();
@@ -65,14 +68,15 @@ void dhtRead (void){
 }
 
 void radioMonitoring(void){
-  //input "C01,T=23.30,H=21,V=4.02;"
+  //input "C01,T=23.30,H=21,V=4.02,P=760;"
   if (radio.available()){
     String buff = radio.readString();
     // Serial.println(buff);
     outdoorIdentifier = buff.substring(buff.indexOf('C')+1, buff.indexOf('T')-1);
     outdoorTemperature = buff.substring(buff.indexOf('T')+2, buff.indexOf('H')-2);
     outdoorHumidity = buff.substring(buff.indexOf('H')+2, buff.indexOf('V')-1);
-    outdoorVoltage = buff.substring(buff.indexOf('V')+2, buff.indexOf(';'));
+    outdoorVoltage = buff.substring(buff.indexOf('V')+2, buff.indexOf('P')-1);
+    outdoorPressure = buff.substring(buff.indexOf('P')+2 ,buff.indexOf(';'));
   }
 
 }
@@ -102,10 +106,10 @@ void resultToLCD(void){
     lcd.print(outdoorTemperature);
   }
   else {
-    // lcd.setCursor(0,0);
-    // lcd.print("G=");
-    // lcd.setCursor(2,0);
-    // lcd.print(localLPG, 1);
+    lcd.setCursor(8,0);
+    lcd.print("P=");
+    lcd.setCursor(10,0);
+    lcd.print(outdoorPressure);
 
     lcd.setCursor(0,0);
     lcd.print("Co2=");
@@ -153,3 +157,4 @@ void loop() {
   resultToLCD();
   // debug();
 }
+
