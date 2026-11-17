@@ -1,0 +1,36 @@
+name: Firmware and protocol tests
+on:
+  push:
+    branches: [main, server, client, "feat/**"]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  protocol:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Test packet codec
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror -pedantic -Iinclude tests/protocol_test.cpp -o /tmp/meteo_protocol_tests
+          /tmp/meteo_protocol_tests
+  avr:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [indoor_uno, outdoor_pro8MHz]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install platformio
+      - run: pio run -e "${{ matrix.environment }}"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: meteo-${{ matrix.environment }}
+          path: |
+            .pio/build/${{ matrix.environment }}/firmware.hex
+            .pio/build/${{ matrix.environment }}/firmware.elf
+          if-no-files-found: error
+          retention-days: 30
